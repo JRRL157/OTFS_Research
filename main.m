@@ -40,23 +40,23 @@ MOD_SIZE = 4;
 %fc = 4e9;
 
 % SNR
-SNR_step = 10; % Incremento de SNR em dB
-SNR_values = 0:SNR_step:40; % Vetor de valores de SNR
+SNR_step = 3; % Incremento de SNR em dB
+SNR_values = 0:SNR_step:30; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 500; % Número de iterações para cada SNR (simulações)
+num = 5; % Número de iterações para cada SNR (simulações)
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
 
 % Define selected (N, M, spd, fc, delta_f) tuples
 simulation_params = [
-    16, 16, 2.5, 3.5e9, 15e3;  % Low mobility, Sub-6 GHz
-    16, 64, 2.5, 3.5e9, 15e3;  % Low mobility, Sub-6 GHz
-    16, 16, 17, 28e9, 120e3;   % Medium mobility, mmWave
-    16, 64, 17, 28e9, 120e3;   % Medium mobility, mmWave
-    16, 16, 100, 6e9, 30e3;    % High-speed train, mid-band 5G
-    16, 64, 100, 6e9, 30e3;    % High-speed train, mid-band 5G
+    %16, 16, 2, 3.5e9, 15e3;  % Low mobility, Sub-6 GHz
+    %16, 64, 2, 3.5e9, 15e3;  % Low mobility, Sub-6 GHz
+    %16, 16, 17, 28e9, 120e3;   % Medium mobility, mmWave
+    %16, 64, 17, 28e9, 120e3;   % Medium mobility, mmWave
+    %16, 16, 100, 6e9, 30e3;    % High-speed train, mid-band 5G
+    %16, 64, 100, 6e9, 30e3;    % High-speed train, mid-band 5G
     64, 64, 100, 6e9, 30e3;    % High-speed train, mid-band 5G
     16, 64, 7500, 20e9, 240e3  % Satellite LEO, Ka-band
     64, 64, 7500, 20e9, 240e3  % Satellite LEO, Ka-band    
@@ -70,7 +70,7 @@ for idx = 1:size(simulation_params)
     delta_f = simulation_params(idx, 5);
     
     %Título do plot
-    plot_title = sprintf('Parâmetros: Num. Iterações=%d, N=%d, M=%d, Speed(m/s)=%d, delta_f(KHz)=%.2f, f_c(MHz)=%.2f', num, N, M, spd, (delta_f/1e3), (fc/1e9));
+    plot_title = sprintf('Iterações=%d,N=%d,M=%d,spd(m/s)=%d,delta_f(KHz)=%.2f, f_c(MHz)=%.2f', num, N, M, spd, (delta_f/1e3), (fc/1e9));
 
     for channel_model_selector = 1:3
         delays_arr = [];
@@ -92,7 +92,7 @@ for idx = 1:size(simulation_params)
         end
     
         for mod_exp = 1:3
-            % Loop sobre as diversas transformadas
+            % Loop sobre as diversas transformadas            
             mod_size = MOD_SIZE^mod_exp;
             for type = 1:4
               % Loop sobre os valores de SNR
@@ -103,6 +103,7 @@ for idx = 1:size(simulation_params)
             
                   % Simule para o valor atual de SNR
                   for i = 1:num
+                      disp(['Iteration #', num2str(i)]);
                       if (type == 1)
                         [x, x_hat] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                       elseif (type == 2)
@@ -114,10 +115,14 @@ for idx = 1:size(simulation_params)
                       else
                         [x, x_hat] = cp_ofdm(N, M, spd, fc, delta_f, SNR_db, mod_size, optimized);
                       end
-            
+                      
                       % Verifique se x e x_hat têm o mesmo comprimento
                       if length(x) ~= length(x_hat)
-                          error('x e x_hat devem ter o mesmo comprimento.');
+                          %disp(['Temperature is:' num2str(UU(90)) 'After: ' num2str(timeInMinutes) ' minutes']);
+                          disp('x e x_hat devem ter o mesmo comprimento.');
+                          disp(['size(x):' num2str(length(x))]);
+                          disp(['size(x_hat)' num2str(length(x_hat))]);
+                          continue;
                       end
             
                       % Calcule o número de erros para esta execução
@@ -133,7 +138,7 @@ for idx = 1:size(simulation_params)
               end
             end
             % Plot do gráfico BER vs. SNR
-            fig = figure();
+            fig = figure('visible','off');
             hold on;
             for type = 1:4
                 semilogy(SNR_values, BER_values(type, :), '-o', 'LineWidth', 1.5, 'DisplayName', mod_schemes{type});

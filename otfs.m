@@ -14,7 +14,7 @@ function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr
   % Generating OTFS frame
   N_syms_per_frame = N*M;
 
-  random_syms = randi([0, mod_size-1], N_syms_per_frame,1);
+  random_syms = randi([0 mod_size-1], [N_syms_per_frame 1]);
   tx_info_symbols = qammod(random_syms, mod_size);
 
   X = reshape(tx_info_symbols, M, N);
@@ -96,7 +96,12 @@ function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr
   %H = eye(N * M);  % Canal idealizado
   x_hat = (H' * H + sigma_w_2)^(-1) * (H' * y);
   %x_hat = (G' * G + sigma_w_2)^(-1) * (G' * y); % Aqui ajustamos o canal simplificado
-  x_hat = qamdemod(x_hat, mod_size);
-  x_hat2 = qammod(x_hat, mod_size);
+  if isnan(x_hat)
+      x = 0;
+      x_hat2 = 0;
+  else
+    x_hat = qamdemod(x_hat, mod_size);
+    x_hat2 = qammod(x_hat, mod_size);
+  end
 end
 
