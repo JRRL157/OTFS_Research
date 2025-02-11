@@ -83,7 +83,7 @@ function [x, x_hat2] = otfs_wh(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_
 
   SNR=10.^(SNR_db/10);
 
-  sigma_w_2=Es/SNR;
+  sigma_w_2 = (Es / (N*M)) / SNR; % Normalize by number of symbols
   noise = sqrt(sigma_w_2 / 2)*(randn(N*M, 1) + 1i*randn(N*M, 1));
 
   r = r + noise;
@@ -96,7 +96,7 @@ function [x, x_hat2] = otfs_wh(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_
   % OTFS delay-doppler LMMSE detection
   y = reshape(Y.', N*M, 1);
   %H = eye(N * M);  % Canal idealizado
-  x_hat = (H' * H + sigma_w_2)^(-1) * (H' * y);
+  x_hat = (((H' * H + sigma_w_2*eye(size(H)))^(-1)) * H') * y;
   %x_hat = (G' * G + sigma_w_2)^(-1) * (G' * y); % Aqui ajustamos o canal simplificado
     if isnan(x_hat)
       x_hat = 0;

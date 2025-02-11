@@ -18,6 +18,8 @@ function [DWHT] = dwht_matrix(N, M)
 
     % Initialize the DWHT matrix
     DWHT = zeros(N, N);
+    
+    H_M = hadamard(M);
 
     % Populate the DWHT matrix
     for k = 0:L-1 % Doppler index
@@ -25,12 +27,12 @@ function [DWHT] = dwht_matrix(N, M)
             for n = 0:N-1 % Time index
                 % Check if the time index belongs to the current delay segment
                 if mod(n, M) == m
-                    DWHT(k + m * L + 1, n + 1) = hadamard(M)(mod(n, M) + 1, k + 1);
+                    DWHT(k + m * L + 1, n + 1) = H_M(mod(n, M) + 1, k + 1);
                 end
             end
         end
     end
 
     % Normalize (optional)
-    DWHT = DWHT / sqrt(N);
+    %DWHT = DWHT / sqrt(N);
 end

@@ -1,8 +1,27 @@
 function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
-  Fn = dft_matrix(N,N);
-  Fm = dft_matrix(M,M);
+  
+  % Channel
+  max_ue_spd_mps = spd / 3.6;
+  nu_max = (max_ue_spd_mps*fc)/c;
+  k_max = nu_max/doppler_resolution;
+
+  % Generate standard channel parameters
+  delays = delays_arr;
+  pdp=pdp_arr;
+  pdp_linear = 10.^(pdp/10);
+  pdp_linear = pdp_linear/sum(pdp_linear);
+  taps=length(pdp_linear);
+
+  g_i = sqrt(pdp_linear).*(sqrt(1/2)*(randn(1,taps)+1i*randn(1,taps)));
+  l_i = round(delays./delay_resolution);
+  k_i = (k_max*cos(2*pi*rand(1,taps))); %%%%% --------- %%%%%%
+
+  Fn = fft(eye(N));
+  Fm = fft(eye(M));
   Fn=Fn/norm(Fn);
   Fm=Fm/norm(Fm);
+
+  
 
   %TODO: Please delete these later
   T=1/delta_f;
@@ -30,27 +49,10 @@ function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr
       E(i,j)=1;
       P((j-1)*M+1:j*M,(i-1)*N+1:i*N)=E;
     end
-  end  
-  
-  X_tf = Fm*X*Fn';
-  X_til = Fm' * X_tf;
+  end
+
+  X_til = X*Fn';
   s = reshape(X_til, 1, N*M);
-
-  % Channel
-  max_ue_spd_mps = spd / 3.6;
-  nu_max = (max_ue_spd_mps*fc)/c;
-  k_max = nu_max/doppler_resolution;
-
-  % Generate standard channel parameters
-  delays = delays_arr;
-  pdp=pdp_arr;
-  pdp_linear = 10.^(pdp/10);
-  pdp_linear = pdp_linear/sum(pdp_linear);
-  taps=length(pdp_linear);
-
-  g_i = sqrt(pdp_linear).*(sqrt(1/2)*(randn(1,taps)+1i*randn(1,taps)));
-  l_i = round(delays./delay_resolution);
-  k_i = (k_max*cos(2*pi*rand(1,taps))); %%%%% --------- %%%%%%
 
   % Generate discrete delay-time channel coefficients and matrix_type
   z = exp(1i*2*pi/N/M);
@@ -83,20 +85,19 @@ function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr
 
   SNR=10.^(SNR_db/10);
 
-  sigma_w_2 = (Es / (N*M)) / SNR; % Normalize by number of symbols
+  sigma_w_2=Es/SNR;
   noise = sqrt(sigma_w_2 / 2)*(randn(N*M, 1) + 1i*randn(N*M, 1));
 
   r = r + noise;
 
   % OTFS demodulation
   Y_til = reshape(r, M, N);
-  Y_tf = Fm * Y_til;
-  Y = Fm' * Y_tf * Fn;  
+  Y = Y_til * Fn;
 
   % OTFS delay-doppler LMMSE detection
   y = reshape(Y.', N*M, 1);
   %H = eye(N * M);  % Canal idealizado
-  x_hat = (((H' * H + sigma_w_2*eye(size(H)))^(-1)) * H') * y;
+  x_hat = (H' * H + sigma_w_2)^(-1) * (H' * y);
   %x_hat = (G' * G + sigma_w_2)^(-1) * (G' * y); % Aqui ajustamos o canal simplificado
   if isnan(x_hat)
       x = 0;
