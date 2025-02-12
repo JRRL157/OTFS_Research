@@ -34,8 +34,8 @@ mod_schemes = {'Classical OTFS', 'OTFS with Zak', 'OTFS with Walsh-Hadamard', 'O
 MOD_SIZE = 4;
 
 % SNR
-SNR_step = 5; % Incremento de SNR em dB
-SNR_values = 0:SNR_step:40; % Vetor de valores de SNR
+SNR_step = 2; % Incremento de SNR em dB
+SNR_values = 14:SNR_step:30; % Vetor de valores de SNR
 
 % Number of Iterations
 num = 1000; % Número de iterações para cada SNR (simulações)
