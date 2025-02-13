@@ -34,11 +34,11 @@ mod_schemes = {'Classical OTFS', 'OTFS with Zak', 'OTFS with Walsh-Hadamard', 'O
 MOD_SIZE = 4;
 
 % SNR
-SNR_step = 2; % Incremento de SNR em dB
-SNR_values = 14:SNR_step:30; % Vetor de valores de SNR
+SNR_step = 1; % Incremento de SNR em dB
+SNR_values = 0:SNR_step:20; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 1000; % Número de iterações para cada SNR (simulações)
+num = 2000; % Número de iterações para cada SNR (simulações)
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
@@ -46,6 +46,7 @@ BER_values = zeros(length(mod_schemes), length(SNR_values));
 % Define selected (N, M, spd, fc, delta_f) tuples
 simulation_params = [
     16, 16, 500, 6e9, 30e3;
+    8, 64, 50, 60e9, 4.96e6;
 ];
 
 for idx = 1:size(simulation_params)
@@ -56,9 +57,9 @@ for idx = 1:size(simulation_params)
     delta_f = simulation_params(idx, 5);
     
     %Título do plot
-    plot_title = sprintf('Iterações=%d,N=%d,M=%d,spd(km/h)=%d,delta_f(KHz)=%.2f, f_c(MHz)=%.2f', num, N, M, spd, (delta_f/1e3), (fc/1e9));
+    plot_title = sprintf('Iterações=%d,N=%d,M=%d,spd(km/h)=%d,delta_f(KHz)=%.2f, f_c(GHz)=%.2f', num, N, M, spd, (delta_f/1e3), (fc/1e9));
 
-    for channel_model_selector = 1:3
+    for channel_model_selector = 1:1
         delays_arr = [];
         pdp_arr = [];
         channel_model_name = "";

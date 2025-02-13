@@ -1,5 +1,5 @@
 function [x, x_hat2] = otfs_dct_type_2(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
-  Cn = dct_t2_matrix(N,M);
+  Cn = dct_t2_matrix(N,N);
   Cn=Cn/norm(Cn);
 
   %TODO: Please delete these later
