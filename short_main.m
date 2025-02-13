@@ -38,7 +38,7 @@ SNR_step = 1; % Incremento de SNR em dB
 SNR_values = 0:SNR_step:30; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 1000; % Número de iterações para cada SNR (simulações)
+num = 1000;
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
@@ -82,7 +82,7 @@ for idx = 1:size(simulation_params)
         for type = 1:4
           % Loop sobre os valores de SNR
           for snr_idx = 1:length(SNR_values)
-              SNR_db = SNR_values(snr_idx); % Valor atual de SNR
+              SNR_db = SNR_values(snr_idx);
               total_errors = 0;
               total_bits = 0;
         
