@@ -76,11 +76,10 @@ function [x, x_hat2] = otfs_dct_type_2(N, M, spd, fc, delta_f, SNR_db, mod_size,
   r=G*s.';
 
   % Add AWGN
-  Es = mean(abs(qammod(0:mod_size -1, mod_size).^2));
-
+  Es = mean(abs(x).^2);
   SNR=10.^(SNR_db/10);
 
-  sigma_w_2 = (Es / (SNR*SNR)); % Normalize by number of symbols
+  sigma_w_2 = (Es / SNR); % Normalize by number of symbols
   noise = sqrt(sigma_w_2 / 2)*(randn(N*M, 1) + 1i*randn(N*M, 1));
 
   r = r + noise;

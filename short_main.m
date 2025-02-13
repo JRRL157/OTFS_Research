@@ -35,10 +35,10 @@ MOD_SIZE = 4;
 
 % SNR
 SNR_step = 1; % Incremento de SNR em dB
-SNR_values = 0:SNR_step:20; % Vetor de valores de SNR
+SNR_values = 0:SNR_step:30; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 2000; % Número de iterações para cada SNR (simulações)
+num = 1000; % Número de iterações para cada SNR (simulações)
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
@@ -130,6 +130,7 @@ for idx = 1:size(simulation_params)
             semilogy(SNR_values, BER_values(type, :), '-o', 'LineWidth', 1.5, 'DisplayName', mod_schemes{type});
         end
         grid on;
+        %set(gca, 'YScale', 'log');
         xlabel('SNR (dB)');
         ylabel(sprintf('BER - [%d QAM, %s Channel Model]', mod_size, channel_model_name));
         legend ('show');
