@@ -130,7 +130,7 @@ for idx = 1:size(simulation_params)
             semilogy(SNR_values, BER_values(type, :), '-o', 'LineWidth', 1.5, 'DisplayName', mod_schemes{type});
         end
         grid on;
-        %set(gca, 'YScale', 'log');
+        set(gca, 'YScale', 'log');
         xlabel('SNR (dB)');
         ylabel(sprintf('BER - [%d QAM, %s Channel Model]', mod_size, channel_model_name));
         legend ('show');
