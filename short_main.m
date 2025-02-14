@@ -29,24 +29,38 @@ otfs_wh_str = "otfs_walsh_hadamard";
 otfs_dct_2_str = "otfs_dct_type_2";
 ofdm_str = "ofdm";
 
-mod_schemes = {'Classical OTFS', 'OTFS with Zak', 'OTFS with Walsh-Hadamard', 'OTFS with DCT Type II'};
+mod_schemes = {'OTFS-DFT', 'OTFS-Zak', 'OTFS-Walsh-Hadamard', 'OTFS-DCT Type II'};
 
 MOD_SIZE = 4;
 
 % SNR
-SNR_step = 1; % Incremento de SNR em dB
+SNR_step = 5; % Incremento de SNR em dB
 SNR_values = 0:SNR_step:30; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 1000;
+num = 10000;
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
 
+
+%[1]Low-Complexity VLSI Architecture for OTFS Transceiver Under Multipath Fading Channel
+%[2]Performance Evaluation of OTFS Over Measured V2V Channels at 60 GHz
+%[3]A Robust and Low-Complexity Walsh-Hadamard Modulation for Doubly-Dispersive Channels
+
 % Define selected (N, M, spd, fc, delta_f) tuples
 simulation_params = [
-    16, 16, 500, 6e9, 30e3;
-    8, 64, 50, 60e9, 4.96e6;
+    16, 16, 500, 6e9, 30e3; %[1]
+    
+    8, 8, 50, 60e9, 625000;%BW=5MHz, [2]
+    8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
+    8, 8, 50, 60e9, 5e6;%BW=40MHz, [2]
+    8, 64, 50, 60e9, 625e3;%BW=40MHz, [2]
+    8, 8, 50, 60e9, 15e6; %BW=120MHz, [2]
+    8, 64, 50, 60e9, 1.875e6; %BW=120MHz, [2]
+    
+    16, 64, 300, 5.9e9, 78.125e3;%BW=5MHz [3]
+    4, 128, 300, 5.9e9, 78.125e3;%BW=10MHz [3]
 ];
 
 for idx = 1:size(simulation_params)
