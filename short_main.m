@@ -31,14 +31,14 @@ ofdm_str = "ofdm";
 
 mod_schemes = {'OTFS-DFT', 'OTFS-Zak', 'OTFS-Walsh-Hadamard', 'OTFS-DCT Type II'};
 
-MOD_SIZE = 4;
+MOD_SIZE = 64;
 
 % SNR
 SNR_step = 5; % Incremento de SNR em dB
-SNR_values = 0:SNR_step:30; % Vetor de valores de SNR
+SNR_values = 0:SNR_step:50; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 10000;
+num = 1000;
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
@@ -50,14 +50,14 @@ BER_values = zeros(length(mod_schemes), length(SNR_values));
 
 % Define selected (N, M, spd, fc, delta_f) tuples
 simulation_params = [
-    16, 16, 500, 6e9, 30e3; %[1]
+    %16, 16, 500, 6e9, 30e3; %[1]
     
-    8, 8, 50, 60e9, 625000;%BW=5MHz, [2]
-    8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
-    8, 8, 50, 60e9, 5e6;%BW=40MHz, [2]
-    8, 64, 50, 60e9, 625e3;%BW=40MHz, [2]
-    8, 8, 50, 60e9, 15e6; %BW=120MHz, [2]
-    8, 64, 50, 60e9, 1.875e6; %BW=120MHz, [2]
+    %8, 8, 50, 60e9, 625000;%BW=5MHz, [2]
+    %8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
+    %8, 8, 50, 60e9, 5e6;%BW=40MHz, [2]
+    %8, 64, 50, 60e9, 625e3;%BW=40MHz, [2]
+    %8, 8, 50, 60e9, 15e6; %BW=120MHz, [2]
+    %8, 64, 50, 60e9, 1.875e6; %BW=120MHz, [2]
     
     16, 64, 300, 5.9e9, 78.125e3;%BW=5MHz [3]
     4, 128, 300, 5.9e9, 78.125e3;%BW=10MHz [3]
@@ -102,7 +102,7 @@ for idx = 1:size(simulation_params)
         
               % Simule para o valor atual de SNR
               for i = 1:num
-                  disp(['Iteration #', num2str(i)]);
+                  disp(['Type = ', num2str(type), ', SNR #',num2str(SNR_db), ', Iteration #', num2str(i)]);
                   if (type == 1)
                     [x, x_hat] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 2)
