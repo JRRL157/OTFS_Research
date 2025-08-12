@@ -1,6 +1,6 @@
 function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
-  Fn = dft_matrix(N,N);
-  Fm = dft_matrix(M,M);
+  Fn = fft(eye(N));
+  Fm = fft(eye(M));
   Fn=Fn/norm(Fn);
   Fm=Fm/norm(Fm);
 
