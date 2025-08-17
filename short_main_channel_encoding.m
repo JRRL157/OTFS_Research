@@ -1,8 +1,7 @@
 % Main procedure
+% THIS IS A MATLAB SCRIPT!
 clc;
 clear;
-pkg load communications;
-pkg load instrument-control
 
 % Prefixo
 directory = "images/";
@@ -26,7 +25,7 @@ channel_model_name = ["EVA", "EPA", "ETU"];
 
 mod_schemes = {'OTFS-DFT', 'RS OTFS-DFT', 'OTFS-Hadamard', 'RS OTFS-Hadamard'};
 
-MOD_SIZE = 64;
+MOD_SIZE = 256;
 
 % SNR
 SNR_step = 10; % Incremento de SNR em dB
