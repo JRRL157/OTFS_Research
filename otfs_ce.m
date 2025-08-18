@@ -1,4 +1,4 @@
-function [x, x_hat2] = otfs_rs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
+function [msg_bits, x_hat2] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
   Fn = fft(eye(N));
   Fm = fft(eye(M));
   Fn=Fn/norm(Fn);
@@ -35,7 +35,7 @@ function [x, x_hat2] = otfs_rs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_
   int_symbols = bi2de(symbols_for_qam, 'left-msb');
 
   % 6. Modulate the integer symbols
-  tx_info_symbols = qammod(int_symbols, mod_size);
+  tx_info_symbols = qammod(encoded_bits.', mod_size, 'InputType', 'bit');
   
   X = reshape(tx_info_symbols, M, N);
   x = reshape(X.', N*M, 1);
@@ -131,4 +131,3 @@ function [x, x_hat2] = otfs_rs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_
     x_hat2 = vitdec(x_hat, trellis, tblen, 'trunc', 'hard');
   end
 end
-

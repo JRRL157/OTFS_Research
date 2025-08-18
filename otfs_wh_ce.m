@@ -1,4 +1,4 @@
-function [x, x_hat2] = otfs_wh_rs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
+function [msg_bits, x_hat2] = otfs_wh_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
   WHn = hadamard(N);
   WHm = hadamard(M);
   WHn=WHn/norm(WHn);
@@ -11,18 +11,32 @@ function [x, x_hat2] = otfs_wh_rs(N, M, spd, fc, delta_f, SNR_db, mod_size, dela
   delay_resolution = 1/(M*delta_f);
   doppler_resolution = 1/(N*T);
 
-  % Generating OTFS frame
-  N_syms_per_frame = N*M;
+  % --- Convolutional Encoder & System Parameters ---
+  % 1. Define a standard rate 1/2, constraint length 7 convolutional code
+  trellis = poly2trellis(7, [171 133]);
+  code_rate = 1/2;
 
-  random_syms = randi([0 mod_size-1], [N_syms_per_frame 1]);
+  % 2. Calculate message and codeword lengths in BITS
+  m = log2(mod_size);
+  total_frame_bits = N * M * m; % Total bits the frame can hold
+  num_message_bits = total_frame_bits * code_rate; % k = n * R
+  num_encoded_bits = num_message_bits / code_rate; % n = k / R
 
-  % RS Encoder
-  n_rs = 255; %Codeword length
-  k_rs = 223; %Message length
-  encoded_msg = rsenc(random_syms, n_rs, k_rs);
+  % 3. Generate the original message BITS
+  msg_bits = randi([0 1], 1, num_message_bits);
 
-  tx_info_symbols = qammod(encoded_msg, mod_size);
+  % 4. Encode the message bits
+  encoded_bits = convenc(msg_bits, trellis);
 
+  % 5. Convert encoded bits to integer symbols for QAM modulation
+  % Group bits into chunks of size 'm'
+  symbols_for_qam = reshape(encoded_bits, m, []).';
+  % Convert binary groups to decimal integers
+  int_symbols = bi2de(symbols_for_qam, 'left-msb');
+
+  % 6. Modulate the integer symbols
+  tx_info_symbols = qammod(int_symbols, mod_size, 'SymbolOrder', 'bin');
+  
   X = reshape(tx_info_symbols, M, N);
   x = reshape(X.', N*M, 1);
 
@@ -36,8 +50,8 @@ function [x, x_hat2] = otfs_wh_rs(N, M, spd, fc, delta_f, SNR_db, mod_size, dela
       E(i,j)=1;
       P((j-1)*M+1:j*M,(i-1)*N+1:i*N)=E;
     end
-  end
-
+  end  
+  
   X_tf = WHm*X*WHn';
   X_til = WHm' * X_tf;
   s = reshape(X_til, 1, N*M);
@@ -96,21 +110,24 @@ function [x, x_hat2] = otfs_wh_rs(N, M, spd, fc, delta_f, SNR_db, mod_size, dela
   % OTFS demodulation
   Y_til = reshape(r, M, N);
   Y_tf = WHm * Y_til;
-  Y = WHm' * Y_tf * WHn;
+  Y = WHm' * Y_tf * WHn;  
 
   % OTFS delay-doppler LMMSE detection
   y = reshape(Y.', N*M, 1);
   %H = eye(N * M);  % Canal idealizado
   x_hat_symbols = (((H' * H + sigma_w_2*eye(size(H)))^(-1)) * H') * y;
   %x_hat = (G' * G + sigma_w_2)^(-1) * (G' * y); % Aqui ajustamos o canal simplificado
-  if isnan(x_hat)
-    x_hat = 0;
-    x_hat2 = 0;
+  if isnan(x_hat_symbols(1))
+      x_hat = -1; % Indicate failure
+      x_hat2 = -1;
   else
-    received_encoded_msg = qamdemod(x_hat_symbols, mod_size);
-    [decoded_msg, num_errors] = rsdec(received_encoded_msg, n_rs, k_rs);
-    x_hat = qamdemod(decoded_msg, mod_size);
-    x_hat2 = qammod(decoded_msg, mod_size);
+    % --- Convolutional Decoder ---
+    % 1. Demodulate received symbols to INTEGERS first.
+    x_hat = qamdemod(x_hat_symbols, mod_size, 'SymbolOrder', 'bin', 'OutputType', 'bit');
+    x_hat = x_hat(:).';
+
+    % 2. Decode the received bits using the Viterbi algorithm
+    tblen = 35; 
+    x_hat2 = vitdec(x_hat, trellis, tblen, 'trunc', 'hard');
   end
 end
-
