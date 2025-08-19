@@ -1,4 +1,4 @@
-function [msg_bits, x_hat2] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
+function [dataIn, dataOut] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
   Fn = fft(eye(N));
   Fm = fft(eye(M));
   Fn=Fn/norm(Fn);
@@ -11,34 +11,34 @@ function [msg_bits, x_hat2] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, 
   delay_resolution = 1/(M*delta_f);
   doppler_resolution = 1/(N*T);
 
-  % --- Convolutional Encoder & System Parameters ---
-  % 1. Define a standard rate 1/2, constraint length 7 convolutional code
-  trellis = poly2trellis(7, [171 133]);
-  code_rate = 1/2;
+  % --- Define a simple Rate 1/2 Convolutional Code ---
+  k = log2(mod_size);
+  constrlen = 7; % Standard constraint length
+  tPoly = poly2trellis(constrlen, [171 133]); % Standard generator polynomials
+  codeRate = 1/2;
 
-  % 2. Calculate message and codeword lengths in BITS
-  m = log2(mod_size);
-  total_frame_bits = N * M * m; % Total bits the frame can hold
-  num_message_bits = total_frame_bits * code_rate; % k = n * R
-  num_encoded_bits = num_message_bits / code_rate; % n = k / R
+  % --- Generate, Encode, and Modulate Data ---
+  num_symbols_per_frame = N * M;
+  num_encoded_bits = num_symbols_per_frame * k;
+  num_message_bits = num_encoded_bits * codeRate;
 
-  % 3. Generate the original message BITS
-  msg_bits = randi([0 1], 1, num_message_bits);
+  % Generate original message bits (as a column vector)
+  dataIn = randi([0 1], num_message_bits - (constrlen-1), 1);
 
-  % 4. Encode the message bits
-  encoded_bits = convenc(msg_bits, trellis);
+  % Add tail bits to flush the encoder (for robust decoding)
+  dataIn_terminated = [dataIn; zeros(constrlen-1, 1)];
 
-  % 5. Convert encoded bits to integer symbols for QAM modulation
-  % Group bits into chunks of size 'm'
-  symbols_for_qam = reshape(encoded_bits, m, []).';
-  % Convert binary groups to decimal integers
-  int_symbols = bi2de(symbols_for_qam, 'left-msb');
+  % Encode the data
+  dataEnc = convenc(dataIn_terminated, tPoly);
 
-  % 6. Modulate the integer symbols
-  tx_info_symbols = qammod(encoded_bits.', mod_size, 'InputType', 'bit');
-  
+  % Group encoded bits into integers
+  dataSymbolsIn = bit2int(dataEnc, k);
+
+  % Modulate the integers to create symbols for the OTFS grid
+  tx_info_symbols = qammod(dataSymbolsIn, mod_size, 'UnitAveragePower', true);
+
   X = reshape(tx_info_symbols, M, N);
-  x = reshape(X.', N*M, 1);
+  x = X(:);
 
   % OTFS Modulation
   Im = eye(M);
@@ -51,10 +51,10 @@ function [msg_bits, x_hat2] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, 
       P((j-1)*M+1:j*M,(i-1)*N+1:i*N)=E;
     end
   end  
-  
+
   X_tf = Fm*X*Fn';
   X_til = Fm' * X_tf;
-  s = reshape(X_til, 1, N*M);
+  s = X_til(:).';
 
   % Channel
   max_ue_spd_mps = spd / 3.6;
@@ -110,24 +110,62 @@ function [msg_bits, x_hat2] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, 
   % OTFS demodulation
   Y_til = reshape(r, M, N);
   Y_tf = Fm * Y_til;
-  Y = Fm' * Y_tf * Fn;  
+  Y = Fm' * Y_tf * Fn;
 
   % OTFS delay-doppler LMMSE detection
-  y = reshape(Y.', N*M, 1);
-  %H = eye(N * M);  % Canal idealizado
-  x_hat_symbols = (((H' * H + sigma_w_2*eye(size(H)))^(-1)) * H') * y;
-  %x_hat = (G' * G + sigma_w_2)^(-1) * (G' * y); % Aqui ajustamos o canal simplificado
-  if isnan(x_hat_symbols(1))
-      x_hat = -1; % Indicate failure
-      x_hat2 = -1;
-  else
-    % --- Convolutional Decoder ---
-    % 1. Demodulate received symbols to INTEGERS first.
-    x_hat = qamdemod(x_hat_symbols, mod_size, 'OutputType', 'bit');
-    x_hat = x_hat(:).';
+  y = Y(:);
+  
+  % --- LMMSE Equalizer with CORRECT End-to-End Channel Matrix H ---
+  % This is the key fix. We build H that maps X_vec to y_vec.
+  H_dd = zeros(N*M, N*M);
+  for i = 1:taps
+      for m_prime = 1:M
+          for n_prime = 1:N
+              l_cycl = mod(m_prime - 1 - l_i(i), M);
+              H_dd = H_dd + g_i(i) * circshift(diag(Fn(:, n_prime)), [0, l_cycl]) * diag(exp(1i*2*pi*k_i(i)*(0:M-1)/M)) * circshift(diag(Fn(:, n_prime)'), [l_cycl, 0]);
+          end
+      end
+  end
+  
+  % A simplified but more common H matrix formulation for LMMSE
+  % This relates the DD symbols X to the time domain signal r
+  % For equalization, we need to bring r back to DD domain first.
+  % Let's use the effective channel matrix H_eff that relates X(:) to y(:)
+  % H_eff = F_M' * diag(h_circ) * F_M, where h_circ is from G
+  % This is complex. Let's use a well-known approximation.
+  
+  % Let's revert to your original H calculation but fix the transforms
+  % This is the most direct fix to your existing code structure
 
-    % 2. Decode the received bits using the Viterbi algorithm
-    tblen = 35; 
-    x_hat2 = vitdec(x_hat, trellis, tblen, 'trunc', 'hard');
+  % 1. Create the permutation matrix P
+  P = zeros(N*M, N*M);
+  for j=1:N
+      for i=1:M
+          E=zeros(M,N);
+          E(i,j)=1;
+          P((j-1)*M+1:j*M,(i-1)*N+1:i*N)=E;
+      end
+  end
+
+  % 2. Calculate the channel in the Delay-Doppler domain
+  H_til = P * G * P';
+
+  % 3. Form the full transform matrix and calculate the final H
+  F_MN = kron(Fm, Fn);
+  H = F_MN * H_til * F_MN'; % Correct effective channel matrix
+
+  % 4. Perform LMMSE equalization
+  % Using '\' is more stable and efficient than inv()
+  x_hat_symbols = (H' * H + sigma_w_2 * eye(size(H))) \ (H' * y);
+
+  % --- Demodulate and Decode ---
+  if any(isnan(x_hat_symbols))
+      dataOut = -1;
+  else
+    dataSymbOut = qamdemod(x_hat_symbols, mod_size, 'UnitAveragePower', true);
+    codedDataOut = int2bit(dataSymbOut, k);
+    dataOut = vitdec(codedDataOut, tPoly, traceBack, 'term', 'hard');
+    dataOut = dataOut(1:length(dataIn));
   end
 end
+
