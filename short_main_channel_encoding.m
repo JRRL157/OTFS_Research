@@ -25,14 +25,14 @@ channel_model_name = ["EVA", "EPA", "ETU"];
 
 mod_schemes = {'OTFS-DFT', 'RS OTFS-DFT', 'OTFS-Hadamard', 'RS OTFS-Hadamard'};
 
-MOD_SIZE = 256;
+MOD_SIZE = 4;
 
 % SNR
 SNR_step = 10; % Incremento de SNR em dB
 SNR_values = 20:SNR_step:50; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 1000;
+num = 100;
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
@@ -97,7 +97,7 @@ for idx = 1:size(simulation_params)
                   if (type == 1)
                     [x, x_hat] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 2)
-                    [x, x_hat] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
+                    [x, x_hat] = otfs_hamming(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 3)
                     [x, x_hat] = otfs_wh(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 4)
