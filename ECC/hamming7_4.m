@@ -1,11 +1,18 @@
 clc;
 clear;
 
-m = [1 0 0 1];
-[H, G, n, k] = hammgen(3);
+N = 4;
+M = 128;
+
+m = floor(log2(N*M + 1));
+
+disp(m);
+[H, G, n, k] = hammgen(m);
 
 disp(G);
 disp(H);
+
+m = randi([0 1], 1, k);
 
 encoded = mod(m * G, 2);
 
@@ -13,9 +20,8 @@ disp('Encoded: ');
 disp(num2str(encoded));
 
 % Adding one error
-i = 5;
+i = 100;
 encoded(i) = mod(encoded(i) + 1, 2);
-encoded(i+1) = mod(encoded(i+1) + 1, 2);
 
 syndrome = mod(H * encoded.', 2);
 
@@ -32,5 +38,11 @@ if ~isempty(error_pos)
 end
 
 disp('Decoded: ');
-decoded = encoded(4:7);
+decoded = encoded(end-k+1:end);
 disp(num2str(decoded));
+
+if isequal(m, decoded)
+    disp('Decoded message matches the original message.');
+else
+    disp('Decoded message does NOT match the original message.');
+end
