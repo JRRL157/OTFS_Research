@@ -1,4 +1,4 @@
-function [x, x_hat2] = otfs_hamming(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
+function [decoded_bits, random_bits] = otfs_hamming(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
   Fn = fft(eye(N));
   Fm = fft(eye(M));
   Fn=Fn/norm(Fn);
@@ -13,15 +13,17 @@ function [x, x_hat2] = otfs_hamming(N, M, spd, fc, delta_f, SNR_db, mod_size, de
 
   % Generating OTFS frame
   
-  [H_ham, G_ham, n_ham, k_ham] = hammgen(3);
-  code_rate = k_ham/n_ham;
-  N_syms_per_frame = floor(N*M);
+  N_bits_per_frame = N * M * log2(mod_size);
+  
+  % Codeword length n = 2^m -1
+  % Message length k = n - m
+  m = floor(log2(N_bits_per_frame + 1));
 
-  random_syms = randi([0 mod_size-1], [N_syms_per_frame 1]);
-  random_syms_bin = dec2bin(random_syms, 4) - 48; % minus 48 to transform in matrix of bits
-  encoded_syms_bin = random_syms_bin * G_ham;
-  encoded_syms = bin2dec(num2str(encoded_syms_bin));
-  tx_info_symbols = qammod(encoded_syms, mod_size);
+  [H_hamm, G_hamm, n, k] = hammgen(m);
+
+  random_bits = randi([0 1], [k 1]);
+  encoded_bits = mod(G.' * random_bits, 2);
+  tx_info_symbols = qammod(encoded_syms, mod_size, inputType='bit');
 
   X = reshape(tx_info_symbols, M, N);
   x = reshape(X.', N_syms_per_frame, 1);
@@ -105,10 +107,16 @@ function [x, x_hat2] = otfs_hamming(N, M, spd, fc, delta_f, SNR_db, mod_size, de
   %x_hat = (G' * G + sigma_w_2)^(-1) * (G' * y); % Aqui ajustamos o canal simplificado
   if isnan(x_hat)
       x = 0;
-      x_hat2 = 0;
   else
-    x_hat = qamdemod(x_hat, mod_size);
-    x_hat2 = qammod(x_hat, mod_size);
+    x_hat = qamdemod(x_hat, mod_size, OutputType='bit');
+    syndrome = mod(H_hamm * x_hat, 2);
+    error_pos = find(ismember(H_hamm.', syndrome.', 'rows'));
+
+    if ~isempty(error_pos)
+	% Correct the error
+	x_hat(error_pos) = mod(x_hat(error_pos) + 1, 2)
+    end
+    decoded_bits = x_hat(end-k+1:end);
   end
 end
 
