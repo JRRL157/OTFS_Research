@@ -1,56 +1,57 @@
 clc;
 clear;
 
-N = 4;
-M = 128;
+N = 16;
+M = 16;
 mod_order = 256;
+bps = log2(mod_order); %Bits per symbol
 
 % OTFS Frame Length (Decimal)
 L = N * M;
 
 % OTFS Frame Length (Binary)
-bL = L * log2(mod_order); 
+bL = L * bps;
 
 % Codeword length (n) is 2^m -1, n = 2^m -1
 % Message length (k) is n - m, k = n - m
 m = floor(log2(bL + 1));
 
-%disp(m);
+% disp(m);
 [H, G, n, k] = hammgen(m);
-
-%disp(G);
-%disp(H);
+codeRate = k / n;
 
 msg = randi([0 1], [k 1]);
-
-disp('Message: ')
-disp(num2str(msg.'));
-
 encoded = mod(G.' * msg, 2);
+encoded_padded = [1 encoded.'].';
 
-%disp('Encoded: ');
-%disp(num2str(encoded));
+tx_symbols = qammod(encoded_padded, mod_order, InputType='bit');
 
-% Adding one error
-i = 100;
-encoded(i) = mod(encoded(i) + 1, 2);
+% Adding Noise
+UncodedEbNo = 6;
+SNR = convertSNR(UncodedEbNo,"ebno","SNR", ...
+    BitsPerSymbol=bps, ...
+    CodingRate=codeRate);
 
-syndrome = mod(H * encoded, 2);
+received_signal = awgn(tx_symbols,SNR);
 
-%disp('Syndrome: ');
-%disp(syndrome);
-%disp(H);
+rx_symbols = qamdemod(received_signal, mod_order, OutputType='bit'); 
+demod_unpadded = rx_symbols(2: end);
+syndrome = mod(H * demod_unpadded, 2);
+
+disp('Syndrome: ');
+disp(syndrome);
+% disp(H);
 
 % Find the error position by comparing syndrome with columns of H
 error_pos = find(ismember(H.', syndrome.', 'rows'));
 
 if ~isempty(error_pos)
     % Correct the error
-    encoded(error_pos) = mod(encoded(error_pos) + 1, 2);
+    demod_unpadded(error_pos) = mod(demod_unpadded(error_pos) + 1, 2);
 end
 
 disp('Decoded: ');
-decoded = encoded(end-k+1:end);
+decoded = demod_unpadded(end-k+1:end);
 disp(num2str(decoded.'));
 
 if isequal(msg, decoded)
