@@ -3,7 +3,7 @@ clear;
 
 N = 4;
 M = 128;
-mod_order = 4;
+mod_order = 256;
 
 % OTFS Frame Length (Decimal)
 L = N * M;
