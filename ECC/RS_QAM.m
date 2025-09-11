@@ -2,9 +2,9 @@ clear;
 clc;
 
 N = 4;
-M = 4;
+M = 128;
 
-mod_order = 16;
+mod_order = 256;
 bps = log2(mod_order); %Bits per symbol
 
 % OTFS Frame Length (Decimal)
@@ -16,7 +16,7 @@ L_bits = L * bps;
 m = bps;
 
 % Symbol correction capability 
-t = 6;
+t = 5;
 
 % Codeword length
 n = 2^m -1;
@@ -38,52 +38,28 @@ rsDecoder = comm.RSDecoder( ...
     CodewordLength=n, ...
     MessageLength=k);
 
-num_blocks = floor(L_bits / bps);
-num_src_bits = num_blocks * k;
-
 % Random message bits which will be sent
-random_bits_msg = randi([0 1], num_src_bits, 1);
+random_bits_msg = randi([0 1], k * L_bits, 1);
 
 % Encoded bits
 encoded_bits = rsEncoder(random_bits_msg);
-% encoded_bits = [];
-% for i = 1:num_blocks
-%     message_block = random_bits_msg((i-1)* (k*m) + 1 : i * (k * m));
-%     disp(message_block);
-%     cword = rsEncoder(message_block);
-%     encoded_bits = [encoded_bits; cword];
-% end
 
-% Padding Frame with zeroes
-num_bits_to_pad = L_bits - length(encoded_bits);
-padded_encoded_bits = [encoded_bits; zeros(num_bits_to_pad, 1)];
+tx_symbols = qammod(encoded_bits, mod_order, InputType='bit');
 
-tx_symbols = qammod(padded_encoded_bits, mod_order, InputType='bit');
-
-% Adding Noise
+% Noise Config
 UncodedEbNo = 6;
 SNR = convertSNR(UncodedEbNo,"ebno","SNR", ...
     BitsPerSymbol=bps, ...
     CodingRate=codeRate);
 
+% Adding Noise
 rx_symbols = awgn(tx_symbols,SNR);
 
+% Demodulation
 demod_bits = qamdemod(rx_symbols, mod_order, OutputType='bit'); 
 
+% RS Decoding
 decoded_bits = rsDecoder(demod_bits);
-% decoded_bits = [];
-% for i = 1:num_blocks
-% 	rec_cword =  demod_bits((i-1)*k + 1: i*k);
-% 	% syndrome = mod(H * rec_cword, 2);
-% 	% error_idx = find(ismember(H.', syndrome.', 'rows'));
-% 	% if ~isempty(error_idx)
-% 	% 	rec_cword(error_idx) =  mod(rec_cword(error_idx) + 1, 2);
-% 	% end
-% 	% msg_block = rec_cword(end-k+1:end);
-%   % msg_block = bchdec(rec_cword, n, k);
-%   msg_block = rsDecoder(rec_cword);
-% 	decoded_bits = [decoded_bits; msg_block];
-% end
 
 if isequal(random_bits_msg, decoded_bits)
     disp('[SUCCESS] Decoded message matches the original message.');
