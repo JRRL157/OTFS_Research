@@ -39,10 +39,20 @@ rsDecoder = comm.RSDecoder( ...
     MessageLength=k);
 
 % Random message bits which will be sent
-random_bits_msg = randi([0 1], k * L_bits, 1);
+random_bits_msg = randi([0 1],  L * bps, 1);
 
+tx_bits = [];
+encoded_bits = [];
+num_blocks = floor((L * bps) / (k * m));
+
+for i=1:num_blocks
+  msg = random_bits_msg(1 + (i-1)*(k*m): i*(k*m));
+  enc_msg = rsEncoder(msg);
+  tx_bits = [tx_bits; msg];
+  encoded_bits = [encoded_bits; enc_msg];
+end
 % Encoded bits
-encoded_bits = rsEncoder(random_bits_msg);
+% encoded_bits = rsEncoder(random_bits_msg);
 
 tx_symbols = qammod(encoded_bits, mod_order, InputType='bit');
 
@@ -59,9 +69,9 @@ rx_symbols = awgn(tx_symbols,SNR);
 demod_bits = qamdemod(rx_symbols, mod_order, OutputType='bit'); 
 
 % RS Decoding
-decoded_bits = rsDecoder(demod_bits);
+rx_bits = rsDecoder(demod_bits);
 
-if isequal(random_bits_msg, decoded_bits)
+if isequal(tx_bits, rx_bits)
     disp('[SUCCESS] Decoded message matches the original message.');
 else
     disp('[FAIL] Decoded message does NOT match the original message.');
