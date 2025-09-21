@@ -23,13 +23,13 @@ pdp_ETU = [-1.0, -1.0, -1.0, 0.0, 0.0, 0.0, -3.0, -5.0, -7.0];
 
 channel_model_name = ["EVA", "EPA", "ETU"];
 
-mod_schemes = {'OTFS-DFT', 'RS OTFS-DFT', 'OTFS-Hadamard', 'RS OTFS-Hadamard'};
+mod_schemes = {'OTFS-DFT', 'RS OTFS-DFT', 'OTFS-Hadamard', 'Hamming OTFS-Hadamard'};
 
-MOD_SIZE = 4;
+MOD_SIZE =256;
 
 % SNR
 SNR_step = 10; % Incremento de SNR em dB
-SNR_values = 20:SNR_step:50; % Vetor de valores de SNR
+SNR_values = 20:SNR_step:40; % Vetor de valores de SNR
 
 % Number of Iterations
 num = 100;
@@ -43,10 +43,10 @@ BER_values = zeros(length(mod_schemes), length(SNR_values));
 
 % Define selected (idx, N, M, spd, fc, delta_f) tuples
 simulation_params = [
-    1, 16, 16, 500, 6e9, 30e3; %[1]
+    %1, 16, 16, 500, 6e9, 30e3; %[1]
 
     %2, 8, 8, 50, 60e9, 625000;%BW=5MHz, [2]
-    %3, 8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
+    3, 8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
     %4, 8, 8, 50, 60e9, 5e6;%BW=40MHz, [2]
     %5, 8, 64, 50, 60e9, 625e3;%BW=40MHz, [2]
     %6, 8, 8, 50, 60e9, 15e6; %BW=120MHz, [2]
@@ -97,7 +97,7 @@ for idx = 1:size(simulation_params)
                   if (type == 1)
                     [x, x_hat] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 2)
-                    [x, x_hat] = otfs_hamming(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
+                    [x, x_hat] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 3)
                     [x, x_hat] = otfs_wh(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 4)
