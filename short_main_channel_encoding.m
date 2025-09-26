@@ -2,6 +2,7 @@
 % THIS IS A MATLAB SCRIPT!
 clc;
 clear;
+rng('default');
 
 % Prefixo
 directory = "images/";
@@ -23,16 +24,17 @@ pdp_ETU = [-1.0, -1.0, -1.0, 0.0, 0.0, 0.0, -3.0, -5.0, -7.0];
 
 channel_model_name = ["EVA", "EPA", "ETU"];
 
-mod_schemes = {'OTFS-DFT', 'RS OTFS-DFT', 'OTFS-Hadamard', 'Hamming OTFS-Hadamard'};
+%mod_schemes = {'Hamming OTFS-DFT', 'LDPC OTFS-DFT', 'OTFS-Hadamard', 'OTFS-DFT'};
+mod_schemes = {'Hamming OTFS-DFT'};
 
-MOD_SIZE =256;
+MOD_SIZE =16;
 
 % SNR
 SNR_step = 10; % Incremento de SNR em dB
 SNR_values = 20:SNR_step:40; % Vetor de valores de SNR
 
 % Number of Iterations
-num = 100;
+num = 1000;
 
 % Initialize BER_values object for all modulation types
 BER_values = zeros(length(mod_schemes), length(SNR_values));
@@ -43,10 +45,10 @@ BER_values = zeros(length(mod_schemes), length(SNR_values));
 
 % Define selected (idx, N, M, spd, fc, delta_f) tuples
 simulation_params = [
-    %1, 16, 16, 500, 6e9, 30e3; %[1]
+    1, 16, 16, 500, 6e9, 30e3; %[1]
 
     %2, 8, 8, 50, 60e9, 625000;%BW=5MHz, [2]
-    3, 8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
+    %3, 8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
     %4, 8, 8, 50, 60e9, 5e6;%BW=40MHz, [2]
     %5, 8, 64, 50, 60e9, 625e3;%BW=40MHz, [2]
     %6, 8, 8, 50, 60e9, 15e6; %BW=120MHz, [2]
@@ -95,13 +97,13 @@ for idx = 1:size(simulation_params)
               for i = 1:num
                   disp(['Type = ', mod_schemes{type}, ', SNR #',num2str(SNR_db), ', Iteration #', num2str(i)]);
                   if (type == 1)
-                    [x, x_hat] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
+                    [x, x_hat] = otfs_hamming(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 2)
-                    [x, x_hat] = otfs_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
+                    [x, x_hat] = otfs_ldpc(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 3)
                     [x, x_hat] = otfs_wh(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 4)
-                    [x, x_hat] = otfs_wh_ce(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
+                    [x, x_hat] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   else
                     [x, x_hat] = cp_ofdm(N, M, spd, fc, delta_f, SNR_db, mod_size, optimized);
                   end
