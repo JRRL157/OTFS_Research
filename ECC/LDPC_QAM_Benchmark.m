@@ -7,7 +7,6 @@ close all;
 %==========================================================================
 
 % --- Modulation Parameters ---
-% Try mod_order = 16 (16-QAM) to see LDPC's power!
 mod_order = 256;
 bps = log2(mod_order); % Bits per symbol
 
