@@ -29,7 +29,7 @@ int main() {
 void example_run_LDPC()
 {
 	unsigned nMaxIter = 8; // number of decoder iterations
-	int M = 16*16; // code word length (number of coded bits)
+	int M = 1000; // code word length (number of coded bits)
 	double rate = 1.0 / 3; // code rate
 
 	unsigned K = unsigned(ceil(M * rate)); // information length
@@ -44,7 +44,7 @@ void example_run_LDPC()
 
 	// Running parameters
 	// NOTE: Adjusted the SNR range for 4-QAM, which typically requires more power than BPSK.
-	vector<double> EsN0_dB = lin_space(-2, 2, 9);
+	vector<double> EsN0_dB = lin_space(0, 20, 9);
 	vector<double> N0(EsN0_dB.size(), 0);
 	transform(EsN0_dB.begin(), EsN0_dB.end(), N0.begin(), [](const double& x) {return pow(10.0, -x / 10.0); });
 
@@ -101,12 +101,23 @@ void example_run_LDPC()
 				// 1. Get a pair of bits
 				bool bit1 = rm_enc[j];
 				bool bit2 = rm_enc[j + 1];
+				bool bit3 = rm_enc[j + 2];
+				bool bit4 = rm_enc[j + 3];
 
-				// 2. 4-QAM Modulation (Gray mapping)
-				// bit1 -> I-component, bit2 -> Q-component
-				// bit 0 maps to +1/sqrt(2), bit 1 maps to -1/sqrt(2)
-				double s_I = (1.0 - 2.0 * bit1) * norm_factor;
-				double s_Q = (1.0 - 2.0 * bit2) * norm_factor;
+				// 2. 16-QAM Modulation (Gray mapping)
+				// Two bits for I, two bits for Q.
+				// Use Gray mapping to minimize bit errors.
+				double s_I, s_Q;
+
+				if (bit1 == 0 && bit2 == 0) s_I = 3 * norm_factor;  // 3
+				else if (bit1 == 0 && bit2 == 1) s_I = 1 * norm_factor;  // 1
+				else if (bit1 == 1 && bit2 == 1) s_I = -1 * norm_factor; // -1
+				else s_I = -3 * norm_factor; // bit1 == 1 && bit2 == 0, -3
+
+				if (bit3 == 0 && bit4 == 0) s_Q = 3 * norm_factor;
+				else if (bit3 == 0 && bit4 == 1) s_Q = 1 * norm_factor;
+				else if (bit3 == 1 && bit4 == 1) s_Q = -1 * norm_factor;
+				else s_Q = -3 * norm_factor;
 
 				// 3. AWGN Channel
 				// Add complex Gaussian noise. Each component (I and Q) has variance N0/2.
@@ -118,16 +129,60 @@ void example_run_LDPC()
 				double r_Q = s_Q + n_Q;
 
 				// 4. LLR Calculation (Demodulation)
-				// For QPSK with Gray mapping, the LLRs for the two bits can be calculated
-				// independently from the I and Q components of the received signal.
-				// The LLR for a BPSK-like channel with amplitude A is LLR = 2*A*r / (N0/2).
-				// Here, A = 1/sqrt(2).
-				// LLR = 2 * (1/sqrt(2)) * r / (N0/2) = 4*r / (sqrt(2)*N0) = 2*sqrt(2)*r / N0
-				double llr1 = (2.0 * sqrt(2.0) * r_I) / N0[i];
-				double llr2 = (2.0 * sqrt(2.0) * r_Q) / N0[i];
+				// For bit1: LLR(bit1) = min(dist(r to s|bit1=0)) - min(dist(r to s|bit1=1))
+				// Approximate LLR calculation (more complex, but more accurate)
+				double llr1, llr2;
+
+				// LLR for bit1
+				double dist_0_0 = pow(r_I - 3 * norm_factor, 2) + pow(r_Q, 2);
+				double dist_0_1 = pow(r_I - 1 * norm_factor, 2) + pow(r_Q, 2);
+				double min_dist_0 = min(dist_0_0, dist_0_1);
+
+				double dist_1_0 = pow(r_I + 3 * norm_factor, 2) + pow(r_Q, 2);
+				double dist_1_1 = pow(r_I + 1 * norm_factor, 2) + pow(r_Q, 2);
+				double min_dist_1 = min(dist_1_0, dist_1_1);
+
+				llr1 = (min_dist_1 - min_dist_0) / (N0[i] / 2.0);
+
+				// LLR for bit2
+				dist_0_0 = pow(r_I - 3 * norm_factor, 2) + pow(r_Q, 2);
+				dist_1_0 = pow(r_I - 1 * norm_factor, 2) + pow(r_Q, 2);
+				min_dist_0 = min(dist_0_0, dist_1_0);
+
+				dist_0_1 = pow(r_I + 3 * norm_factor, 2) + pow(r_Q, 2);
+				dist_1_1 = pow(r_I + 1 * norm_factor, 2) + pow(r_Q, 2);
+				min_dist_1 = min(dist_0_1, dist_1_1);
+
+				llr2 = (min_dist_1 - min_dist_0) / (N0[i] / 2.0);
+				
+				double llr3, llr4;
+
+				// LLR for bit3
+				dist_0_0 = pow(r_I, 2) + pow(r_Q - 3 * norm_factor, 2);
+				dist_0_1 = pow(r_I, 2) + pow(r_Q - 1 * norm_factor, 2);
+				min_dist_0 = min(dist_0_0, dist_0_1);
+
+				dist_1_0 = pow(r_I, 2) + pow(r_Q + 3 * norm_factor, 2);
+				dist_1_1 = pow(r_I, 2) + pow(r_Q + 1 * norm_factor, 2);
+				min_dist_1 = min(dist_1_0, dist_1_1);
+
+				llr3 = (min_dist_1 - min_dist_0) / (N0[i] / 2.0);
+
+				// LLR for bit4
+				dist_0_0 = pow(r_I, 2) + pow(r_Q - 3 * norm_factor, 2);
+				dist_1_0 = pow(r_I, 2) + pow(r_Q - 1 * norm_factor, 2);
+				min_dist_0 = min(dist_0_0, dist_1_0);
+
+				dist_0_1 = pow(r_I, 2) + pow(r_Q + 3 * norm_factor, 2);
+				dist_1_1 = pow(r_I, 2) + pow(r_Q + 1 * norm_factor, 2);
+				min_dist_1 = min(dist_0_1, dist_1_1);
+
+				llr4 = (min_dist_1 - min_dist_0) / (N0[i] / 2.0);
 
 				llr.push_back(llr1);
 				llr.push_back(llr2);
+				llr.push_back(llr3);
+				llr.push_back(llr4);
 			}
 
 			// =======================================================================
@@ -178,7 +233,7 @@ void example_run_LDPC()
 	// print simulation result
 	cout << endl << endl;
 	cout << "================== Simulation Results ==================" << endl;
-	cout << "Modulation: " << "4-QAM" << endl;
+	cout << "Modulation: " << "16-QAM" << endl;
 	cout << "[M,R] = [ " << M << ", " << rate << "]" << endl;
 	cout << "EsN0_dB = [ ";
 	for (auto e : EsN0_dB)
