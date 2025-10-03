@@ -56,8 +56,10 @@ int main() {
     }
 
     printf("MATLAB Wrapper listening on port %d for data...\n", PORT);
-
     while (true) {
+        memset(buffer, 0, MAX_BUFFER_SIZE);
+        memset(response_buffer, 0, MAX_BUFFER_SIZE);
+        
         n_bytes = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &client_addr_len);
 
         if (n_bytes < 0) {
@@ -68,10 +70,10 @@ int main() {
         printf("Received %d bytes from %s:%d\n", n_bytes, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
         double *received_data = (double *)buffer;
-        uint16_t op_code = (uint16_t)received_data[0];
+        uint8_t op_code = static_cast<uint8_t>(received_data[0]);
         double* data_ptr = &received_data[1];
         
-        printf("Operation code: %d INCOMING!!\n", op_code);
+        printf("#### [%d] Operation code: %d INCOMING!! ####\n", op_code, op_code);
 
         switch(op_code) {
             case 0: 
@@ -87,10 +89,10 @@ int main() {
                 break;
         }
 
-        if (sendto(sockfd, response_buffer, 64, 0, (const struct sockaddr *)&client_addr, client_addr_len) < 0) {
+        if (sendto(sockfd, response_buffer, 512, 0, (const struct sockaddr *)&client_addr, client_addr_len) < 0) {
             perror("Send failed");
         } else {
-            printf("Sent %d bytes back to %s:%d\n", 64, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+            printf("Sent %zu bytes back to %s:%d\n", 512, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         }
     }
 
@@ -115,49 +117,74 @@ void constructorLDPC(double* data_ptr, uint8_t* response) {
 }
 
 void encodeLDPC(double* data_ptr, uint8_t* encoded_data) {
-    uint32_t data_len = static_cast<uint32_t>(data_ptr[0]);
-    std::size_t M = static_cast<std::size_t>(data_ptr[1]);
+    std::size_t K = static_cast<std::size_t>(data_ptr[0]);
+    printf("Encoding request for K=%zu\n", K);
 
-    std::vector<bool> msg(data_len);
-    for (uint32_t i = 0; i < data_len; i++) {
+    std::vector<bool> msg(K);
+    printf("msg = ");
+    for (uint32_t i = 0; i < K; i++) {
         msg[i] = static_cast<bool>(data_ptr[1 + i]);
+        printf("%.0f ", data_ptr[1 + i]);
     }
+    printf("\n");
+
+    printf("Encoding message of length %zu\n", msg.size());
 
     // Filler bits
     std::vector<bool> fillers(ldpc.getFillerLength(), 0);
     std::vector<bool> extMsg = msg;
     extMsg.insert(extMsg.end(), fillers.begin(), fillers.end());
 
+    printf("Message with fillers length added: %zu\n", extMsg.size());
+
     // LDPC encoding
     std::vector<bool> enc = ldpc.encode(extMsg);
     assert(ldpc.checkSumCodeWord(enc));
 
     //rate matching
+    std::size_t M = static_cast<std::size_t>(ceil(K / ldpc.mR));
     std::vector<bool> rm_enc = ldpc.rateMatch(enc, M);
 
+    printf("Encoded and rate-matched message length: %zu\n", rm_enc.size());
+
+    printf("encoded = ");
     // Copy encoded data to output buffer
     for(std::size_t i = 0; i < rm_enc.size(); i++) {
         encoded_data[i] = static_cast<uint8_t>(rm_enc[i]);
+        printf("%d ", encoded_data[i]);
     }
+    printf("\n");
+
+    printf("Encoding completed and data copied to response buffer.\n");
 }
 
 void decodeLDPC(double* data_ptr, uint8_t* decoded_data) {
     unsigned int nMaxIter = static_cast<int>(data_ptr[0]);
     uint32_t data_len = static_cast<uint32_t>(data_ptr[1]);
-    
+
+    printf("Decoding request with nMaxIter=%u, data_len=%u\n", nMaxIter, data_len);
+
     std::vector<double> llr(data_len);
+    printf("r = ");
     for (uint32_t i = 0; i < data_len; i++) {
         llr[i] = data_ptr[2 + i];
+        printf("%.2f ", llr[i]);
     }
-    
+    printf("\n");
+
     // rate recovery
     std::vector<double> rr_llr = ldpc.rateRecover(llr);
+    printf("Rate recovery completed. LLR length: %zu\n", rr_llr.size());
 
     // scl decoding
     std::vector<bool> msg_cap = ldpc.decode(rr_llr, nMaxIter);
+    printf("Decoding completed. Decoded message length: %zu\n", msg_cap.size());
 
     // Copy decoded data to output buffer
+    printf("decoded = ");
     for(std::size_t i = 0; i < msg_cap.size(); i++) {
         decoded_data[i] = static_cast<uint8_t>(msg_cap[i]);
+        printf("%d ", decoded_data[i]);
     }
+    printf("\n");
 }
