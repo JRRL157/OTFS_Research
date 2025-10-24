@@ -1,1 +1,0 @@
-g++ -o matlab_wrapper.bin matlab_wrapper.cpp LDPC.cpp nrLDPCTables.cpp
