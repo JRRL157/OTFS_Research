@@ -29,13 +29,14 @@ otfs_wh_str = "otfs_walsh_hadamard";
 otfs_dct_2_str = "otfs_dct_type_2";
 ofdm_str = "ofdm";
 
-mod_schemes = {'OTFS-DFT', 'OTFS-Zak', 'OTFS-Walsh-Hadamard', 'OTFS-DCT Type II'};
+%mod_schemes = {'OTFS-DFT', 'OTFS-Zak', 'OTFS-Walsh-Hadamard', 'OTFS-DCT Type II'};
+mod_schemes = {'OTFS-DFT'};
 
-MOD_SIZE = 64;
+MOD_SIZE = 4;
 
 % SNR
-SNR_step = 5; % Incremento de SNR em dB
-SNR_values = 0:SNR_step:50; % Vetor de valores de SNR
+SNR_step = 10; % Incremento de SNR em dB
+SNR_values = 0:SNR_step:40; % Vetor de valores de SNR
 
 % Number of Iterations
 num = 1000;
@@ -50,25 +51,26 @@ BER_values = zeros(length(mod_schemes), length(SNR_values));
 
 % Define selected (N, M, spd, fc, delta_f) tuples
 simulation_params = [
-    %16, 16, 500, 6e9, 30e3; %[1]
+    0, 4, 4, 500, 6e9, 30e3; %[1]
     
-    %8, 8, 50, 60e9, 625000;%BW=5MHz, [2]
+    1, 8, 8, 50, 60e9, 625000;%BW=5MHz, [2]
     %8, 64, 50, 60e9, 78125;%BW=5MHz, [2]
     %8, 8, 50, 60e9, 5e6;%BW=40MHz, [2]
     %8, 64, 50, 60e9, 625e3;%BW=40MHz, [2]
     %8, 8, 50, 60e9, 15e6; %BW=120MHz, [2]
     %8, 64, 50, 60e9, 1.875e6; %BW=120MHz, [2]
     
-    16, 64, 300, 5.9e9, 78.125e3;%BW=5MHz [3]
-    4, 128, 300, 5.9e9, 78.125e3;%BW=10MHz [3]
+    %16, 64, 300, 5.9e9, 78.125e3;%BW=5MHz [3]
+    %4, 128, 300, 5.9e9, 78.125e3;%BW=10MHz [3]
 ];
 
 for idx = 1:size(simulation_params)
-    N = simulation_params(idx, 1);
-    M = simulation_params(idx, 2);
-    spd = simulation_params(idx, 3);
-    fc = simulation_params(idx, 4);
-    delta_f = simulation_params(idx, 5);
+    C = simulation_params(idx, 1);
+    N = simulation_params(idx, 2);
+    M = simulation_params(idx, 3);
+    spd = simulation_params(idx, 4);
+    fc = simulation_params(idx, 5);
+    delta_f = simulation_params(idx, 6);
     
     %Título do plot
     plot_title = sprintf('Iterações=%d,N=%d,M=%d,spd(km/h)=%d,delta_f(KHz)=%.2f, f_c(GHz)=%.2f', num, N, M, spd, (delta_f/1e3), (fc/1e9));
@@ -93,7 +95,7 @@ for idx = 1:size(simulation_params)
         end
         
         mod_size = MOD_SIZE;
-        for type = 1:4
+        for type = 1:length(mod_schemes)
           % Loop sobre os valores de SNR
           for snr_idx = 1:length(SNR_values)
               SNR_db = SNR_values(snr_idx);
@@ -124,7 +126,7 @@ for idx = 1:size(simulation_params)
                       continue;
                   end
         
-                  % Calcule o número de erros para esta execução
+                  % Calcule o número de erros para esta execução                  
                   errors = sum(x ~= x_hat);
         
                   % Atualize os contadores totais
@@ -134,23 +136,18 @@ for idx = 1:size(simulation_params)
         
               % Calcule o BER para o valor atual de SNR
               BER_values(type, snr_idx) = total_errors / total_bits;
+
+              % Write BER values to a file
+              filename = 'ber_values.txt';
+              file = fopen(filename, 'a'); % Open file in append mode
+              if file == -1
+                  error('Could not open file for writing.');
+              end
+              dateAndTime = datestr(now(), 'yyyy_mmmm_dd_HH-MM-SS');
+              fprintf(file, 'Date: %s: ,Scenario Index: %d, Type: %s, Modulation: %d-QAM, SNR: %f, BER: %e\n', dateAndTime, C, mod_schemes{type}, mod_size, SNR_db, BER_values(type, snr_idx));
+              fclose(file);
           end
         end
         
-        % Plot do gráfico BER vs. SNR
-        fig = figure('visible','off');
-        hold on;
-        for type = 1:4
-            semilogy(SNR_values, BER_values(type, :), '-o', 'LineWidth', 1.5, 'DisplayName', mod_schemes{type});
-        end
-        grid on;
-        set(gca, 'YScale', 'log');
-        xlabel('SNR (dB)');
-        ylabel(sprintf('BER - [%d QAM, %s Channel Model]', mod_size, channel_model_name));
-        legend ('show');
-        title(plot_title);
-        dateAndTime = datestr(now(),'yyyy_mmmm_dd_HH-MM-SS');
-        fname = sprintf('%s%s_%s_%d-QAM.png', directory, dateAndTime, channel_model_name, mod_size);
-        saveas(fig, fname, 'png');
     end
 end
