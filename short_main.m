@@ -42,8 +42,8 @@ SNR_values = 0:SNR_step:40; % Vetor de valores de SNR
 num = 1000;
 
 % Initialize BER_values object for all modulation types
-BER_values = zeros(length(mod_schemes), length(SNR_values));
-
+SER_values = zeros(length(mod_schemes), length(SNR_values));
+SER_values_int = zeros(length(mod_schemes), length(SNR_values));
 
 %[1]Low-Complexity VLSI Architecture for OTFS Transceiver Under Multipath Fading Channel
 %[2]Performance Evaluation of OTFS Over Measured V2V Channels at 60 GHz
@@ -100,13 +100,14 @@ for idx = 1:size(simulation_params)
           for snr_idx = 1:length(SNR_values)
               SNR_db = SNR_values(snr_idx);
               total_errors = 0;
-              total_bits = 0;
+              total_errors_syms = 0;
+              total_syms = 0;
         
               % Simule para o valor atual de SNR
               for i = 1:num
                   disp(['Type = ', num2str(type), ', SNR #',num2str(SNR_db), ', Iteration #', num2str(i)]);
                   if (type == 1)
-                    [x, x_hat] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
+                    [x, x_hat, syms, demod_syms] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 2)
                     [x, x_hat] = otfs_zak(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr);
                   elseif (type == 3)
@@ -118,33 +119,53 @@ for idx = 1:size(simulation_params)
                   end
                   
                   % Verifique se x e x_hat têm o mesmo comprimento
-                  if length(x) ~= length(x_hat)
-                      %disp(['Temperature is:' num2str(UU(90)) 'After: ' num2str(timeInMinutes) ' minutes']);
+                  if length(x) ~= length(x_hat)                      
                       disp('x e x_hat devem ter o mesmo comprimento.');
                       disp(['size(x):' num2str(length(x))]);
                       disp(['size(x_hat)' num2str(length(x_hat))]);
                       continue;
                   end
+
+                  % Verifique se x e x_hat têm o mesmo comprimento
+                  if length(syms) ~= length(demod_syms)                      
+                      disp('syms e demod_syms devem ter o mesmo comprimento.');
+                      continue;
+                  end
         
                   % Calcule o número de erros para esta execução                  
+                  errors = 0;
+                  syms_errors = 0;
+
+                  for i = 1:length(x)
+                      error = x(i) ~= x_hat(i);
+                      sym_err = syms(i) ~= demod_syms(i);
+                      
+                      if (error ~= sym_err)
+                        fprintf("x = (%f, %f)    x_hat = (%f, %f) \n", real(x(i)), imag(x(i)), real(x_hat(i)), imag(x_hat(i)));
+                        fprintf("sym = %d,    demod_sym = %d \n", syms(i), demod_syms(i));
+                      end
+                  end
                   errors = sum(x ~= x_hat);
+                  syms_errors = sum(syms ~= demod_syms);
         
                   % Atualize os contadores totais
                   total_errors = total_errors + errors;
-                  total_bits = total_bits + length(x);
+                  total_errors_syms = total_errors_syms + syms_errors;
+                  total_syms = total_syms + length(x);
               end
         
               % Calcule o BER para o valor atual de SNR
-              BER_values(type, snr_idx) = total_errors / total_bits;
+              SER_values(type, snr_idx) = total_errors / total_syms;
+              SER_values_int(type, snr_idx) = total_errors_syms / total_syms;
 
               % Write BER values to a file
-              filename = 'ber_values.txt';
+              filename = 'ser_values.txt';
               file = fopen(filename, 'a'); % Open file in append mode
               if file == -1
                   error('Could not open file for writing.');
               end
               dateAndTime = datestr(now(), 'yyyy_mmmm_dd_HH-MM-SS');
-              fprintf(file, 'Date: %s: ,Scenario Index: %d, Type: %s, Modulation: %d-QAM, SNR: %f, BER: %e\n', dateAndTime, C, mod_schemes{type}, mod_size, SNR_db, BER_values(type, snr_idx));
+              fprintf(file, 'Date: %s: ,Scenario Index: %d, Type: %s, Modulation: %d-QAM, SNR: %f, SER: %e, SER(int): %e \n', dateAndTime, C, mod_schemes{type}, mod_size, SNR_db, SER_values(type, snr_idx), SER_values_int(type, snr_idx));
               fclose(file);
           end
         end
