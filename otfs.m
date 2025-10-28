@@ -1,4 +1,4 @@
-function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
+function [x, x_hat2, tx_info_int, rx_info_int] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr, pdp_arr)
   Fn = fft(eye(N));
   Fm = fft(eye(M));
   Fn=Fn/norm(Fn);
@@ -14,9 +14,10 @@ function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr
   % Generating OTFS frame
   N_syms_per_frame = N*M;
 
-  random_syms = randi([0 mod_size-1], [N_syms_per_frame 1]);
-  tx_info_symbols = qammod(random_syms, mod_size);
-
+  tx_info_int = randi([0 mod_size-1], [N_syms_per_frame 1]);
+  %random_syms = randi([0, 1], N_syms_per_frame*log2(mod_size), 1);
+  
+  tx_info_symbols = qammod(tx_info_int, mod_size, UnitAveragePower=true);
   X = reshape(tx_info_symbols, M, N);
   x = reshape(X.', N*M, 1);
 
@@ -94,15 +95,17 @@ function [x, x_hat2] = otfs(N, M, spd, fc, delta_f, SNR_db, mod_size, delays_arr
 
   % OTFS delay-doppler LMMSE detection
   y = reshape(Y.', N*M, 1);
-  %H = eye(N * M);  % Canal idealizado
   x_hat = (((H' * H + sigma_w_2*eye(size(H)))^(-1)) * H') * y;
-  %x_hat = (G' * G + sigma_w_2)^(-1) * (G' * y); % Aqui ajustamos o canal simplificado
+
   if isnan(x_hat)
-      x = 0;
-      x_hat2 = 0;
+      %x = 0;
+      %x_hat2 = 0;
   else
-    x_hat = qamdemod(x_hat, mod_size);
-    x_hat2 = qammod(x_hat, mod_size);
+    demod_syms = qamdemod(x_hat, mod_size);
+    %demod_syms = qamdemod(x_hat, mod_size, "gray", OutputType="bit");
+    Z = reshape(demod_syms, N, M);
+    rx_info_int = reshape(Z.', N*M, 1);
+    x_hat2 = qammod(demod_syms, mod_size, UnitAveragePower=true);
   end
 end
 
